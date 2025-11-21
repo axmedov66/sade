@@ -315,25 +315,46 @@ watchBtn.addEventListener("click", () => {
 
 
 // DAILY RESET AT BAKU MIDNIGHT
-function resetDailyAtMidnight() {
-    const now = new Date();
-    const bakuTime = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Baku" }));
+const LIMIT = 100, REWARD = 0.005;
+const BAL_KEY = 'bal', COUNT_KEY = 'cnt', RESET_KEY = 'resetTime';
 
-    let h = bakuTime.getHours();
-    let m = bakuTime.getMinutes();
-    let s = bakuTime.getSeconds();
+// LocalStorage təhlükəsiz oxuma/yazma
+function safeGet(k, d = 0){ try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } }
+function safeSet(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} }
 
-    if (h === 0 && m === 0 && s <= 2) {
-        watchedAds = 0;
-        document.getElementById("watchedCount").textContent = 0;
-        document.getElementById("progressBar").style.width = "0%";
+// Balans və sayğacları yükləyirik
+let bal = parseFloat(safeGet(BAL_KEY, 0));
+let cnt = parseInt(safeGet(COUNT_KEY, 0));
+let resetTime = safeGet(RESET_KEY, null);
 
-        localStorage.setItem("lastReset", Date.now());
-        saveUserData();
-    }
+// ➤ 24 saatlıq RESET FUNKSİYASI
+function getNextResetTime(){
+  const now = new Date();
+  const AZ_OFFSET = 4; // Azərbaycan vaxtı üçün +4 saat
+
+  // Növbəti Azərbaycan vaxtı ilə gecə 00:00
+  let resetUTC = new Date(Date.UTC(
+    now.getUTCFullYear(),
+    now.getUTCMonth(),
+    now.getUTCDate(),
+    23 - AZ_OFFSET, // Bakı vaxtında 00:00 deməkdir
+    0, 0, 0
+  ));
+
+  // Əgər artıq keçibsə → sabaha təyin et
+  if(now.getTime() > resetUTC.getTime()){
+    resetUTC.setUTCDate(resetUTC.getUTCDate() + 1);
+  }
+  return resetUTC.getTime();
 }
 
-setInterval(resetDailyAtMidnight, 1000);
+// İlk girişdə və ya vaxtı keçib → sıfırla
+if(!resetTime || Date.now() > resetTime){
+  cnt = 0;
+  resetTime = getNextResetTime();
+  safeSet(RESET_KEY, resetTime);
+  safeSet(COUNT_KEY, cnt);
+}
 
 
 // ANTI ZOOM / ANTI CHEAT
